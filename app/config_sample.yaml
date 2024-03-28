@@ -1,0 +1,5 @@
+region: "us-east-1"
+access_key: "aaaaaaaaaaaaaaaaaaaa"
+secret_key: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+bucket_name: "xxxxx"
+endpoint: "https://cccc"
