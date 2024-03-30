@@ -30,6 +30,12 @@ func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.Put(w, r)
 		case "DELETE":
 			h.Delete(w, r)
+		case "COPY":
+			h.Copy(w, r)
+		case "MOVE":
+			h.Move(w, r)
+		case "MKCOL":
+			h.Mkcol(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -156,4 +162,53 @@ func (h *WebDAVClient) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *WebDAVClient) Copy(w http.ResponseWriter, r *http.Request) {
+	src := r.URL.Path[1:]
+	dest := r.Header.Get("Destination")
+	if dest == "" {
+		http.Error(w, "Destination header is required", http.StatusBadRequest)
+		return
+	}
+	if strings.HasPrefix(dest, "/") {
+		dest = dest[1:]
+	}
+	_, err := h.Backend.CopyObject(src, dest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *WebDAVClient) Move(w http.ResponseWriter, r *http.Request) {
+	src := r.URL.Path[1:]
+	dest := r.Header.Get("Destination")
+	if dest == "" {
+		http.Error(w, "Destination header is required", http.StatusBadRequest)
+		return
+	}
+	if strings.HasPrefix(dest, "/") {
+		dest = dest[1:]
+	}
+	_, err := h.Backend.MoveObject(src, dest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *WebDAVClient) Mkcol(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Path
+	if !strings.HasSuffix(key, "/") {
+		key += "/"
+	}
+	_, err := h.Backend.PutObject(key, strings.NewReader(""))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
 }

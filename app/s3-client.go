@@ -91,7 +91,6 @@ func (s *S3Client) ListObjects(key string) (*s3.ListObjectsV2Output, error) {
 }
 
 func (s *S3Client) GetObject(key string) (*s3.GetObjectOutput, error) {
-	log.Printf("getting object: %v", key)
 	input := &s3.GetObjectInput{
 		Bucket: aws.String(Config.BucketName),
 		Key: aws.String(key),
@@ -100,7 +99,6 @@ func (s *S3Client) GetObject(key string) (*s3.GetObjectOutput, error) {
 }
 
 func (s *S3Client) PutObject(key string, body io.Reader) (*s3.PutObjectOutput, error) {
-	log.Printf("uploading object: %v", key)
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
@@ -114,10 +112,30 @@ func (s *S3Client) PutObject(key string, body io.Reader) (*s3.PutObjectOutput, e
 }
 
 func (s *S3Client) DeleteObject(key string) (*s3.DeleteObjectOutput, error) {
-	log.Printf("deleting object: %v", key)
 	input := &s3.DeleteObjectInput{
 		Bucket: aws.String(Config.BucketName),
 		Key: aws.String(key),
 	}
 	return s.Client.DeleteObject(input)
+}
+
+func (s *S3Client) CopyObject(src, dest string) (*s3.CopyObjectOutput, error) {
+	input := &s3.CopyObjectInput{
+		Bucket: aws.String(Config.BucketName),
+		CopySource: aws.String(Config.BucketName + "/" + src),
+		Key: aws.String(dest),
+	}
+	return s.Client.CopyObject(input)
+}
+
+func (s *S3Client) MoveObject(src, dest string) (*s3.CopyObjectOutput, error) {
+	_, err := s.CopyObject(src, dest)
+	if err != nil {
+		return nil, err
+	}
+	_, err = s.DeleteObject(src)
+	if err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
