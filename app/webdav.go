@@ -28,6 +28,8 @@ func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.Get_Profind(w, r)
 		case "PUT":
 			h.Put(w, r)
+		case "DELETE":
+			h.Delete(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -143,4 +145,15 @@ func (h *WebDAVClient) Put(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
+}
+
+func (h *WebDAVClient) Delete(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Path
+	output, err := h.Backend.DeleteObject(key)
+	fmt.Println(output)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

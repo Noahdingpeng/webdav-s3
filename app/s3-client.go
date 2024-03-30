@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+
 	"github.com/spf13/viper"
 )
 
@@ -110,4 +111,13 @@ func (s *S3Client) PutObject(key string, body io.Reader) (*s3.PutObjectOutput, e
 		Body:   bytes.NewReader(data),
 	}
 	return s.Client.PutObject(input)
+}
+
+func (s *S3Client) DeleteObject(key string) (*s3.DeleteObjectOutput, error) {
+	log.Printf("deleting object: %v", key)
+	input := &s3.DeleteObjectInput{
+		Bucket: aws.String(Config.BucketName),
+		Key: aws.String(key),
+	}
+	return s.Client.DeleteObject(input)
 }
