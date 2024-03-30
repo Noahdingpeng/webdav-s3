@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"io"
+	"bytes"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -94,4 +96,18 @@ func (s *S3Client) GetObject(key string) (*s3.GetObjectOutput, error) {
 		Key: aws.String(key),
 	}
 	return s.Client.GetObject(input)
+}
+
+func (s *S3Client) PutObject(key string, body io.Reader) (*s3.PutObjectOutput, error) {
+	log.Printf("uploading object: %v", key)
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, err
+	}
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(Config.BucketName),
+		Key:    aws.String(key),
+		Body:   bytes.NewReader(data),
+	}
+	return s.Client.PutObject(input)
 }

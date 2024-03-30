@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -19,6 +20,7 @@ func NewWebDAVClient() *WebDAVClient {
 }
 
 func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(r.Method, r.URL.Path)
 	switch r.Method {
 		case "GET":
 			h.Get_Profind(w, r)
@@ -134,6 +136,7 @@ func formatByte (size int64) string {
 
 func (h *WebDAVClient) Put(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
+	fmt.Println(key, r.Body)
 	_, err := h.Backend.PutObject(key, r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
