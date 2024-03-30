@@ -23,6 +23,8 @@ type AWSConfig struct {
 	Endpoint string `mapstructure:"endpoint"`
 }
 
+var Config AWSConfig
+
 func newS3Config() string {
 	path := "../conf/"
 	_, err := os.Stat(path+"config.yaml")
@@ -47,11 +49,11 @@ func loadConfig(path string) (config AWSConfig, err error) {
 	if err := viper.ReadInConfig(); err != nil{
 		log.Fatalf("unable to read config: %v, %v", path, err)
 	}
-	err = viper.Unmarshal(&config)
+	err = viper.Unmarshal(&Config)
 	if err != nil {
 		log.Fatalf("unable to unmarshal config: %v", err)
 	}
-	return config, err
+	return Config, err
 }
 
 func NewS3Client() *S3Client {
@@ -74,4 +76,22 @@ func NewS3Client() *S3Client {
 	return &S3Client{
 		Client: s3Client,
 	}
+}
+
+func (s *S3Client) ListObjects(key string) (*s3.ListObjectsV2Output, error) {
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(Config.BucketName),
+		Prefix: aws.String(key),
+		Delimiter: aws.String("/"),
+	}
+	return s.Client.ListObjectsV2(input)
+}
+
+func (s *S3Client) GetObject(key string) (*s3.GetObjectOutput, error) {
+	log.Printf("getting object: %v", key)
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(Config.BucketName),
+		Key: aws.String(key),
+	}
+	return s.Client.GetObject(input)
 }
