@@ -1,0 +1,19 @@
+stages:
+  - build
+
+variables:
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHA
+
+before_script:
+  - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+build:
+  image: docker:23.0.6-dind
+  stage: build
+  tags:
+    - Cardinal
+  script:
+    - docker build -t $IMAGE_TAG .
+    - docker tag $IMAGE_TAG $CI_REGISTRY_IMAGE:latest
+    - docker push $IMAGE_TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
