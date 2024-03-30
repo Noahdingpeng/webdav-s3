@@ -139,23 +139,11 @@ func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/xml;charset=utf-8")
 	
-	parentpath := strings.Join(strings.Split(r.URL.Path, "/")[0:len(strings.Split(r.URL.Path, "/"))-2], "/")
-	if keyPrefix == "/"{
-		parentpath = ""
-	}
 	xmlResponse := `
+	<?xml version="1.0" encoding="utf-8" ?>
 	<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns">
 		<d:response>
-			<d:href>` + parentpath + `/</d:href>
-			<d:propstat>
-				<d:prop>
-					<d:displayname>../</d:displayname>
-					<d:getlastmodified></d:getlastmodified>
-					<d:getcontentlength></d:getcontentlength>
-				</d:prop>
-				<d:status>HTTP/1.1 200 OK</d:status>
-			</d:propstat>
-		</d:response>`
+			<d:href>` + r.URL.Path + `</d:href>`
 
 	for _, prefix := range result.CommonPrefixes {
 		xmlResponse += `
@@ -188,7 +176,8 @@ func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
 		</d:response>`
 	}
 
-	xmlResponse += `</d:multistatus>`
+	xmlResponse += `</d:response>
+	</d:multistatus>`
     w.WriteHeader(http.StatusOK)
     w.Write([]byte(xmlResponse))
 }
