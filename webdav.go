@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"io"
 	"net/http"
 	"path"
@@ -20,12 +20,16 @@ func NewWebDAVClient() *WebDAVClient {
 }
 
 func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.Method, r.URL.Path)
+	log.Println(r.Method, r.URL.Path)
 	switch r.Method {
 		case "GET":
-			h.Get_Profind(w, r)
+			if r.URL.Path != "" && strings.HasSuffix(r.URL.Path, "/") {
+				h.Get_html(w, r)
+			} else {
+				h.Get(w, r)
+			}
 		case "PROPFIND":
-			h.Get_Profind(w, r)
+			h.Propfind(w, r)
 		case "PUT":
 			h.Put(w, r)
 		case "DELETE":
@@ -36,16 +40,12 @@ func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.Move(w, r)
 		case "MKCOL":
 			h.Mkcol(w, r)
+		case "OPTIONS":
+			h.Option(w, r)
+		case "HEAD":
+			h.Head(w, r)
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func (h *WebDAVClient) Get_Profind(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "" && strings.HasSuffix(r.URL.Path, "/") {
-		h.Propfind(w, r)
-	} else {
-		h.Get(w, r)
 	}
 }
 
@@ -70,7 +70,7 @@ func (h *WebDAVClient) Get(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
+func (h *WebDAVClient) Get_html(w http.ResponseWriter, r *http.Request){
 	keyPrefix := r.URL.Path[1:]
 	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
         keyPrefix += "/"
@@ -126,6 +126,73 @@ func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte(html))
 }
 
+func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
+	keyPrefix := r.URL.Path[1:]
+	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
+        keyPrefix += "/"
+    }
+	result, err := h.Backend.ListObjects(keyPrefix)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/xml;charset=utf-8")
+	
+	parentpath := strings.Join(strings.Split(r.URL.Path, "/")[0:len(strings.Split(r.URL.Path, "/"))-2], "/")
+	if keyPrefix == "/"{
+		parentpath = ""
+	}
+	xmlResponse := `
+	<d:multistatus xmlns:d="DAV:" xmlns:s="http://sabredav.org/ns">
+		<d:response>
+			<d:href>` + parentpath + `/</d:href>
+			<d:propstat>
+				<d:prop>
+					<d:displayname>../</d:displayname>
+					<d:getlastmodified></d:getlastmodified>
+					<d:getcontentlength></d:getcontentlength>
+				</d:prop>
+				<d:status>HTTP/1.1 200 OK</d:status>
+			</d:propstat>
+		</d:response>`
+
+	for _, prefix := range result.CommonPrefixes {
+		xmlResponse += `
+		<d:response>
+			<d:href>/` + *prefix.Prefix + `</d:href>
+			<d:propstat>
+				<d:prop>
+					<d:displayname>` + *prefix.Prefix + `</d:displayname>
+					<d:resourcetype><d:collection/></d:resourcetype>
+				</d:prop>
+				<d:status>HTTP/1.1 200 OK</d:status>
+			</d:propstat>
+		</d:response>`
+	}
+	for _, obj := range result.Contents {
+		modified := obj.LastModified.String()
+		modified = strings.Split(modified, ".")[0]
+		size := formatByte(*obj.Size)
+		xmlResponse += `
+		<d:response>
+			<d:href>` + *obj.Key + `</d:href>
+			<d:propstat>
+				<d:prop>
+					<d:displayname>` + path.Base(*obj.Key) + `</d:displayname>
+					<d:getlastmodified>` + modified + `</d:getlastmodified>
+					<d:getcontentlength>` + size + `</d:getcontentlength>
+				</d:prop>
+				<d:status>HTTP/1.1 200 OK</d:status>
+			</d:propstat>
+		</d:response>`
+	}
+
+	xmlResponse += `</d:multistatus>`
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte(xmlResponse))
+}
+
 func formatByte (size int64) string {
 	if size < 1024 {
 		return strconv.FormatInt(size, 10) + " Bytes"
@@ -144,7 +211,6 @@ func formatByte (size int64) string {
 
 func (h *WebDAVClient) Put(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
-	fmt.Println(key, r.Body)
 	_, err := h.Backend.PutObject(key, r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -155,8 +221,7 @@ func (h *WebDAVClient) Put(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebDAVClient) Delete(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
-	output, err := h.Backend.DeleteObject(key)
-	fmt.Println(output)
+	_, err := h.Backend.DeleteObject(key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -212,3 +277,29 @@ func (h *WebDAVClient) Mkcol(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusCreated)
 }
+
+func (h *WebDAVClient) Option(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("DAV", "1,2")
+	w.Header().Set("Allow", "OPTIONS, GET, PUT, DELETE, COPY, MOVE, MKCOL, PROPFIND, HEAD")
+	w.Header().Set("Content-Length", "0")
+	w.Header().Set("MS-Author-Via", "DAV")
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *WebDAVClient) Head(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Path
+	result, err := h.Backend.GetObject(key)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer result.Body.Close()
+
+	for k, v := range result.Metadata {
+		w.Header().Set(k, *v)
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", strconv.FormatInt(*result.ContentLength, 10))
+	w.WriteHeader(http.StatusOK)
+}
+
