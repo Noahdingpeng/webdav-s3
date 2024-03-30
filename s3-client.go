@@ -32,7 +32,7 @@ func newS3Config() string {
 	path := "conf/"
 	_, err := os.Stat(path+"config.yaml")
 	if err != nil {
-		fi, err := os.ReadFile("conf/config_sample.yaml")
+		fi, err := os.ReadFile("config_sample.yaml")
 		if err != nil {
 			log.Fatalf("unable to read sample config: %v", err)
 		}
