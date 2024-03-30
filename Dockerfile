@@ -8,7 +8,7 @@ RUN go build -o webdav -v .
 
 FROM alpine:3.14.2
 WORKDIR /app
+RUN MKDIR /app/conf
 COPY --from=builder /app/webdav /app/webdav
-COPY --from=builder /app/conf/ /app/conf/
 COPY --from=builder /app/config_sample.yaml /app/config_sample.yaml
 CMD [ "/app/webdav" ]
