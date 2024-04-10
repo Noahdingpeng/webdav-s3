@@ -29,7 +29,7 @@ func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				h.Get(w, r)
 			}
 		case "PROPFIND":
-			h.Propfind(w, r)
+			h.Get_html(w, r)
 		case "PUT":
 			h.Put(w, r)
 		case "DELETE":
@@ -126,7 +126,7 @@ func (h *WebDAVClient) Get_html(w http.ResponseWriter, r *http.Request){
     w.Write([]byte(html))
 }
 
-func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
+func (h *WebDAVClient) Get_XML(w http.ResponseWriter, r *http.Request) {
 	keyPrefix := r.URL.Path[1:]
 	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
         keyPrefix += "/"
