@@ -9,6 +9,7 @@
 # Binaries for programs and plugins
 *.exe
 *.exe~
+webdav
 *.dll
 *.so
 *.dylib
