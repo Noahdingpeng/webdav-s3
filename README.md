@@ -60,3 +60,5 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 - [ ] Inside Basic AUTH
 - [ ] Use Environment Variables for Configuration
 - [ ] Upgrade AWS-SDK to AWS Go SDK v2 for large file upload & download
+- [ ] GitHub Actions for CI/CD
+- [ ] Better Logging and Error Handling
