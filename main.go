@@ -1,8 +1,7 @@
 package main
 
 import (
-	// "net/http"
-	"fmt"
+	"net/http"
 	"log"
 )
 
@@ -14,11 +13,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to load config: %v", err)
 	}
-	fmt.Println(Cfg.AccessKey)
-	fmt.Println(Cfg.SecretKey)
-	fmt.Println(Cfg.BucketName)
-	fmt.Println(Cfg.Region)
-	fmt.Println(Cfg.Endpoint)
-	fmt.Println(Cfg.Port)
-	fmt.Println(Cfg.BaseURL)
+	
+	webdav := NewWebDAVClient()
+	http.Handle("/", webdav)
+	log.Println("Server started on port " + Cfg.Port)
+	http.ListenAndServe(":"+Cfg.Port, nil)
+
 }

@@ -26,13 +26,19 @@ func LoadConfig() (*Config, error) {
 		log.Fatalf("unable to read sample config: %v", err)
 		return nil, err
 	}
-
 	viper.AutomaticEnv()
+
+	viper.BindEnv("access_key","access_key")
+	viper.BindEnv("secret_key","secret_key")
+	viper.BindEnv("bucket_name","bucket_name")
+	viper.BindEnv("region","region")
+	viper.BindEnv("endpoint","endpoint")
+	viper.BindEnv("port","port")
+	viper.BindEnv("base_url","base_url")
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath("conf")
 	viper.SetConfigType("yaml")
-
 	if err := viper.ReadInConfig(); err != nil {
 		log.Println("unable to read config, using Environment Variables")
 	}
