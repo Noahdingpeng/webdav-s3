@@ -5,6 +5,8 @@ A lightweight GO WebDAV server that uses AWS S3 as a backend. It used AWS SDK fo
 
 ## Installing
 
+### From Source
+
 1. Clone the repository and install the dependencies:
 ```bash
 git clone https://github.com/Noahdingpeng/webdav-s3
@@ -15,20 +17,48 @@ go build -o webdav -v .
 2. Copy the sample configuration file and edit it:
 ```bash
 cp config_sample.yaml conf/config.yaml
+vim conf/config.yaml
 ```
-3. Run the server with port 8080
+3. Run the server with port setting in the configuration file:
+```bash
+./webdav
+```
 
 ### Docker Compose
 ```yaml
 services:
   webdav:
-    image: docker.dingyipeng.com/pengpeng/webdav:latest
+    image: noahding1214/webdav-s3:latest
     container_name: webdav
     restart: always
-    volumes:
-        - ./webdav_public.yaml:/app/conf/config.yaml
+    environment:
+        - loglevel=INFO
+        - region=us-east-1
+        - access_key=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        - secret_key=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        - bucket_name=webdav
+        - endpoint=https://s3.us-east-1.amazonaws.com
+        - baseurl=http://127.0.0.1
+        - port=8080
     ports:
         - 8080:8080
+```
+
+### Docker Compose + Traefik
+```yaml
+services:
+  webdav:
+    image: noahding1214/webdav-s3:latest
+    container_name: webdav
+    restart: always
+    env_file:
+        - .env
+    labels:
+        # Change the domain name and ports to your own based on the configuration file
+        - "traefik.enable=true"
+        - "traefik.http.routers.webdav.rule=Host(`webdav.example.com`)"
+        - "traefik.http.routers.webdav.entrypoints=websecure"
+        - "traefik.http.services.webdav.loadbalancer.server.port=8080"
 ```
 
 ### Nginx Proxy Reverse
@@ -58,7 +88,7 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 - [x] Basic WebDAV Server with S3 Backend
 - [x] GET, PUT, DELETE, MKCOL, COPY, MOVE, OPTIONS, PROPFIND, Head Methods
 - [ ] Inside Basic AUTH
-- [ ] Use Environment Variables for Configuration
+- [X] Use Environment Variables for Configuration
 - [ ] Upgrade AWS-SDK to AWS Go SDK v2 for large file upload & download
 - [ ] GitHub Actions for CI/CD
-- [ ] Better Logging and Error Handling
+- [X] Better Logging and Error Handling
