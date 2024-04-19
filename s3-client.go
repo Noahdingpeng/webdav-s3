@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-	"os"
 	"io"
 	"bytes"
 
@@ -10,80 +8,41 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-
-	"github.com/spf13/viper"
 )
 
 type S3Client struct {
 	Client *s3.S3
 }
 
-type AWSConfig struct {
-	AccessKey string `mapstructure:"access_key"`
-	SecretKey string `mapstructure:"secret_key"`
-	BucketName string `mapstructure:"bucket_name"`
-	Region string `mapstructure:"region"`
-	Endpoint string `mapstructure:"endpoint"`
-}
-
-var Config AWSConfig
-
-func newS3Config() string {
-	path := "conf/"
-	_, err := os.Stat(path+"config.yaml")
-	if err != nil {
-		fi, err := os.ReadFile("config_sample.yaml")
-		if err != nil {
-			log.Fatalf("unable to read sample config: %v", err)
-		}
-		err = os.WriteFile(path+"config.yaml", fi, 0644)
-		if err != nil {
-			log.Fatalf("unable to write config: %v", err)
-		}
-	}
-	return path
-}
-
-func loadConfig(path string) (config AWSConfig, err error) {
-	viper.AddConfigPath(path)
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err != nil{
-		log.Fatalf("unable to read config: %v, %v", path, err)
-	}
-	err = viper.Unmarshal(&Config)
-	if err != nil {
-		log.Fatalf("unable to unmarshal config: %v", err)
-	}
-	return Config, err
-}
-
 func NewS3Client() *S3Client {
-	config, err := loadConfig(newS3Config())
-	if err != nil {
-		log.Fatalf("unable to load config: %v", err)
-	}
 	awsConfig := &aws.Config{
-		Region: aws.String(config.Region),
-		Endpoint: aws.String(config.Endpoint),
-		Credentials: credentials.NewStaticCredentials(config.AccessKey, config.SecretKey, ""),
+		Region: aws.String(Cfg.Region),
+		Endpoint: aws.String(Cfg.Endpoint),
+		Credentials: credentials.NewStaticCredentials(Cfg.AccessKey, Cfg.SecretKey, ""),
 	}
 	awsConfig.S3ForcePathStyle = aws.Bool(true)
 
 	sess, err := session.NewSession(awsConfig)
 	if err != nil {
-		log.Fatalf("unable to create session: %v", err)
+		Logoutput("Unable to create S3 session", "error")
+		return nil
 	}
 	s3Client := s3.New(sess)
+	s3conf := "AccessKey: "+Cfg.AccessKey+"\nSecretKey: "+Cfg.SecretKey+"\nBucketName: "+Cfg.BucketName+"\nRegion: "+Cfg.Region+"\nEndpoint: "+Cfg.Endpoint
+	if _, err := s3Client.ListBuckets(nil); err != nil {
+		Logoutput("Cannot Create S3 Client, Please check the S3 configuration;\nCurrent configuration: "+s3conf, "error")
+		return nil
+	}
+	Logoutput("S3 Client created with configuration: "+s3conf, "info")
 	return &S3Client{
 		Client: s3Client,
 	}
 }
 
 func (s *S3Client) ListObjects(key string) (*s3.ListObjectsV2Output, error) {
+	Logoutput("ListObjects: "+key, "debug")
 	input := &s3.ListObjectsV2Input{
-		Bucket: aws.String(Config.BucketName),
+		Bucket: aws.String(Cfg.BucketName),
 		Prefix: aws.String(key),
 		Delimiter: aws.String("/"),
 	}
@@ -91,8 +50,9 @@ func (s *S3Client) ListObjects(key string) (*s3.ListObjectsV2Output, error) {
 }
 
 func (s *S3Client) GetObject(key string) (*s3.GetObjectOutput, error) {
+	Logoutput("GetObject: "+key, "debug")
 	input := &s3.GetObjectInput{
-		Bucket: aws.String(Config.BucketName),
+		Bucket: aws.String(Cfg.BucketName),
 		Key: aws.String(key),
 	}
 	return s.Client.GetObject(input)
@@ -101,10 +61,12 @@ func (s *S3Client) GetObject(key string) (*s3.GetObjectOutput, error) {
 func (s *S3Client) PutObject(key string, body io.Reader) (*s3.PutObjectOutput, error) {
 	data, err := io.ReadAll(body)
 	if err != nil {
+		Logoutput("Unable to read Body for Put Requests", "info")
 		return nil, err
 	}
+	Logoutput("PutObject: "+key, "debug")
 	input := &s3.PutObjectInput{
-		Bucket: aws.String(Config.BucketName),
+		Bucket: aws.String(Cfg.BucketName),
 		Key:    aws.String(key),
 		Body:   bytes.NewReader(data),
 	}
@@ -112,29 +74,34 @@ func (s *S3Client) PutObject(key string, body io.Reader) (*s3.PutObjectOutput, e
 }
 
 func (s *S3Client) DeleteObject(key string) (*s3.DeleteObjectOutput, error) {
+	Logoutput("DeleteObject: "+key, "debug")
 	input := &s3.DeleteObjectInput{
-		Bucket: aws.String(Config.BucketName),
+		Bucket: aws.String(Cfg.BucketName),
 		Key: aws.String(key),
 	}
 	return s.Client.DeleteObject(input)
 }
 
 func (s *S3Client) CopyObject(src, dest string) (*s3.CopyObjectOutput, error) {
+	Logoutput("CopyObject: "+src+" to "+dest, "debug")
 	input := &s3.CopyObjectInput{
-		Bucket: aws.String(Config.BucketName),
-		CopySource: aws.String(Config.BucketName + "/" + src),
+		Bucket: aws.String(Cfg.BucketName),
+		CopySource: aws.String(Cfg.BucketName + "/" + src),
 		Key: aws.String(dest),
 	}
 	return s.Client.CopyObject(input)
 }
 
 func (s *S3Client) MoveObject(src, dest string) (*s3.CopyObjectOutput, error) {
+	Logoutput("MoveObject: "+src+" to "+dest, "debug")
 	_, err := s.CopyObject(src, dest)
 	if err != nil {
+		Logoutput("Unable to copy object From Move Requsts", "info")
 		return nil, err
 	}
 	_, err = s.DeleteObject(src)
 	if err != nil {
+		Logoutput("Unable to delete object From Move Requets", "info")
 		return nil, err
 	}
 	return nil, nil

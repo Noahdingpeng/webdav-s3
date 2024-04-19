@@ -9,12 +9,15 @@
 # Binaries for programs and plugins
 *.exe
 *.exe~
+webdav
 *.dll
 *.so
 *.dylib
 
 # Test binary, built with `go test -c`
 *.test
+test.env
+docker-compose_test.yml
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
