@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"io"
 	"net/http"
 	"path"
@@ -20,7 +19,7 @@ func NewWebDAVClient() *WebDAVClient {
 }
 
 func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.Method, r.URL.Path)
+	Logoutput(r.Method+" "+r.URL.Path, "debug")
 	switch r.Method {
 		case "GET":
 			if r.URL.Path != "" && strings.HasSuffix(r.URL.Path, "/") {
@@ -45,6 +44,7 @@ func (h *WebDAVClient) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case "HEAD":
 			h.Head(w, r)
 		default:
+			Logoutput("Method not allowed", "info")
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
@@ -53,18 +53,21 @@ func (h *WebDAVClient) Get(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
 	result, err := h.Backend.GetObject(key)
 	if err != nil {
+		Logoutput("Unable to Get object From Get Requests: "+key, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer result.Body.Close()
 
 	for k, v := range result.Metadata {
+		Logoutput(k+" : "+*v, "debug")
 		w.Header().Set(k, *v)
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
 
 	_, err = io.Copy(w, result.Body)
 	if err != nil {
+		Logoutput("Unable to io.copy object From Get Requests: "+key, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -75,8 +78,10 @@ func (h *WebDAVClient) Get_html(w http.ResponseWriter, r *http.Request){
 	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
         keyPrefix += "/"
     }
+	Logoutput("Get_html: "+keyPrefix, "debug")
 	result, err := h.Backend.ListObjects(keyPrefix)
 	if err != nil {
+		Logoutput("Unable to List object From Get_html Requests: "+keyPrefix, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -122,6 +127,7 @@ func (h *WebDAVClient) Get_html(w http.ResponseWriter, r *http.Request){
 	}
 
 	html += `</table></body></html>`
+	Logoutput("HTML: "+html, "debug")
     w.WriteHeader(http.StatusOK)
     w.Write([]byte(html))
 }
@@ -131,8 +137,10 @@ func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
 	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
         keyPrefix += "/"
     }
+	Logoutput("Propfind: "+keyPrefix, "debug")
 	result, err := h.Backend.ListObjects(keyPrefix)
 	if err != nil {
+		Logoutput("Unable to List object From Propfind Requests: "+keyPrefix, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -181,6 +189,7 @@ func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
 	xmlResponse = strings.Replace(xmlResponse, "\t", "", -1)
 	xmlResponse = strings.Replace(xmlResponse, "\n", "", -1)
 	xmlResponse = strings.Replace(xmlResponse, "  ", "", -1)
+	Logoutput("XML: "+xmlResponse, "debug")
     w.WriteHeader(http.StatusOK)
     w.Write([]byte(xmlResponse))
 }
@@ -203,8 +212,10 @@ func formatByte (size int64) string {
 
 func (h *WebDAVClient) Put(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
+	Logoutput("Put: "+key, "debug")
 	_, err := h.Backend.PutObject(key, r.Body)
 	if err != nil {
+		Logoutput("Unable to Put object From Put Requests: "+key, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -213,8 +224,10 @@ func (h *WebDAVClient) Put(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebDAVClient) Delete(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
+	Logoutput("Delete: "+key, "debug")
 	_, err := h.Backend.DeleteObject(key)
 	if err != nil {
+		Logoutput("Unable to Delete object From Delete Requests: "+key, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -225,14 +238,17 @@ func (h *WebDAVClient) Copy(w http.ResponseWriter, r *http.Request) {
 	src := r.URL.Path[1:]
 	dest := r.Header.Get("Destination")
 	if dest == "" {
+		Logoutput("Destination header is required", "info")
 		http.Error(w, "Destination header is required", http.StatusBadRequest)
 		return
 	}
 	if strings.HasPrefix(dest, "/") {
 		dest = dest[1:]
 	}
+	Logoutput("Copy: "+src+" to "+dest, "debug")
 	_, err := h.Backend.CopyObject(src, dest)
 	if err != nil {
+		Logoutput("Unable to Copy object From Copy Requests: "+src+" to "+dest, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -243,14 +259,17 @@ func (h *WebDAVClient) Move(w http.ResponseWriter, r *http.Request) {
 	src := r.URL.Path[1:]
 	dest := r.Header.Get("Destination")
 	if dest == "" {
+		Logoutput("Destination header is required", "info")
 		http.Error(w, "Destination header is required", http.StatusBadRequest)
 		return
 	}
 	if strings.HasPrefix(dest, "/") {
 		dest = dest[1:]
 	}
+	Logoutput("Move: "+src+" to "+dest, "debug")
 	_, err := h.Backend.MoveObject(src, dest)
 	if err != nil {
+		Logoutput("Unable to Move object From Move Requests: "+src+" to "+dest, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -262,8 +281,10 @@ func (h *WebDAVClient) Mkcol(w http.ResponseWriter, r *http.Request) {
 	if !strings.HasSuffix(key, "/") {
 		key += "/"
 	}
+	Logoutput("Mkcol: "+key, "debug")
 	_, err := h.Backend.PutObject(key, strings.NewReader(""))
 	if err != nil {
+		Logoutput("Unable to Put object From Mkcol Requests: "+key, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -271,6 +292,7 @@ func (h *WebDAVClient) Mkcol(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *WebDAVClient) Option(w http.ResponseWriter, r *http.Request) {
+	Logoutput("Option Requests", "debug")
 	w.Header().Set("DAV", "1,2")
 	w.Header().Set("Allow", "OPTIONS, GET, PUT, DELETE, COPY, MOVE, MKCOL, PROPFIND, HEAD")
 	w.Header().Set("Content-Length", "0")
@@ -280,14 +302,17 @@ func (h *WebDAVClient) Option(w http.ResponseWriter, r *http.Request) {
 
 func (h *WebDAVClient) Head(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path
+	Logoutput("Head: "+key, "debug")
 	result, err := h.Backend.GetObject(key)
 	if err != nil {
+		Logoutput("Unable to Get object From Head Requests: "+key, "info")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer result.Body.Close()
 
 	for k, v := range result.Metadata {
+		Logoutput(k+" : "+*v, "debug")
 		w.Header().Set(k, *v)
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
