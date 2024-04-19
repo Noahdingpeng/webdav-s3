@@ -13,7 +13,7 @@ func main() {
 		Logoutput("Unable to load config", "error")
 		return
 	}
-	
+
 	Logoutput("Webdav server started", "info")
 	Logoutput("Log level: "+Cfg.Loglevel, "info")
 	webdav := NewWebDAVClient()

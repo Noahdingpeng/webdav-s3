@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"github.com/spf13/viper"
 )
 
@@ -21,9 +22,10 @@ func LoadConfig() (*Config, error) {
 	viper.SetConfigName("config_sample")
 	viper.AddConfigPath(".")
 	viper.SetConfigType("yaml")
+	viper.SetDefault("loglevel", "INFO")
 
 	if err := viper.ReadInConfig(); err != nil {
-		Logoutput("unable to read config_sample", "error")
+		Logoutput("unable to read config_sample", "error_force")
 		return nil, err
 	}
 	viper.AutomaticEnv()
@@ -37,16 +39,18 @@ func LoadConfig() (*Config, error) {
 	viper.BindEnv("port","port")
 	viper.BindEnv("baseurl","baseurl")
 
-	viper.SetConfigName("config")
-	viper.AddConfigPath("conf")
-	viper.SetConfigType("yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		Logoutput("unable to read config, will use environment variable and default value", "info")
+	if _, err := os.Stat("conf/config.yaml"); err == nil {
+		viper.SetConfigName("config")
+		viper.AddConfigPath("conf")
+		viper.MergeInConfig()
+		Logoutput("Using config file: conf/config.yaml", "info_force")
+	}else{
+		Logoutput("Using Environment Variables", "info_force")
 	}
 
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
-		Logoutput("unable to unmarshal config", "error")
+		Logoutput("unable to unmarshal config", "error_force")
 		return nil, err
 	}
 	return &config, nil

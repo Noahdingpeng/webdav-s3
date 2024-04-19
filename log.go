@@ -7,6 +7,10 @@ import (
 
 func Logoutput(message string, level string) {
 	switch level {
+		case "info_force":
+			log.Println("INFO: " + message)
+		case "error_force":
+			log.Fatalln("ERROR: " + message)
 		case "debug":
 			if strings.ToLower(Cfg.Loglevel) == "debug" {
 				log.Println("DEBUG: " + message)
