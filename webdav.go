@@ -145,7 +145,9 @@ func (h *WebDAVClient) Propfind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/xml;charset=utf-8")
+	w.WriteHeader(http.StatusMultiStatus)
+	w.Header().Set("Content-Type", "text/xml;charset=utf-8")
+	w.Header().Set("Connection", "keep-alive")
 	
 	xmlResponse := `
 	<?xml version="1.0" encoding="utf-8" ?>
